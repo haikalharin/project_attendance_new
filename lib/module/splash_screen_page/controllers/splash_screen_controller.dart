@@ -33,7 +33,7 @@ class SplashScreenController extends GetxController {
       /*** jika controller menggunakan Get.lazyPut maka saat akan menuju controller tersebut harus di hapus dulu ***/
       // Get.delete<LoginBinding>();
 
-      Get.offAllNamed(Routes.LOGIN);
+      Get.offAllNamed(Routes.BOTTOM_NAV_BAR);
     }
   }
 }

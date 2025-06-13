@@ -52,6 +52,18 @@ class MapsController extends GetxController {
 
   void startLiveLocation() async {
     try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        throw 'Location services are disabled.';
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied ||
+            permission == LocationPermission.deniedForever) {
+          throw 'Location permissions are denied.';
+        }
+      }
       // Ambil lokasi pertama kali
       final initialPosition = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
