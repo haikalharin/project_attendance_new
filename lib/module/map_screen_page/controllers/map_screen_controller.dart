@@ -177,6 +177,30 @@ class MapsController extends GetxController {
     final long = currentPosition.value!.longitude;
     isLoading.value = true;
     final response = await mapsServices.getAddress(lat: lat, long: long);
+final yourPredictedDataList = <ResultModel<FaceEmbeddingModel>>[
+      ResultModel.completed(FaceEmbeddingModel([
+        0.12, 0.34, 0.56, 0.78, 0.91,
+        0.23, 0.45, 0.67, 0.89, 0.01,
+        0.11, 0.22, 0.33, 0.44, 0.55,
+        0.66, 0.77, 0.88, 0.99, 0.10,
+        0.21, 0.32, 0.43, 0.54, 0.65,
+        0.76, 0.87, 0.98, 0.09, 0.19,
+        0.29, 0.39, 0.49, 0.59, 0.69,
+        0.79, 0.89, 0.99, 0.08, 0.18,
+        0.28, 0.38, 0.48, 0.58, 0.68,
+        0.78, 0.88, 0.98, 0.07, 0.17,
+        0.27, 0.37, 0.47, 0.57, 0.67,
+        0.77, 0.87, 0.97, 0.06, 0.16,
+        0.26, 0.36, 0.46, 0.56, 0.66,
+        0.76, 0.86, 0.96, 0.05, 0.15,
+        0.25, 0.35, 0.45, 0.55, 0.65,
+        0.75, 0.85, 0.95, 0.04, 0.14,
+        0.24, 0.34, 0.44, 0.54, 0.64,
+        0.74, 0.84, 0.94, 0.03, 0.13,
+        0.23, 0.33, 0.43, 0.53, 0.63,
+        0.73, 0.83, 0.93, 0.02, 0.12
+      ]), "Dummy face vector 1"),
+    ];
 
     if (response.isSuccess) {
       isLoading.value = false;
@@ -189,6 +213,9 @@ class MapsController extends GetxController {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(addressModel.value?.displayName ?? '')),
         );
+      });
+      Get.toNamed(Routes.FACE_RECOG_PAGE,arguments: {
+        'predicted_datas': yourPredictedDataList,
       });
     } else {
       isLoading.value = false;

@@ -143,9 +143,12 @@ class MapScreen extends GetView<MapsController> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: ElevatedButton(
-                    onPressed: controller.isNearLocation.value
-                        ? () => controller.checkIn(context)
-                        : null,
+                    onPressed:
+                    // controller.isNearLocation.value
+                    //     ?
+                        () => controller.checkIn(context)
+                        // : null
+                    ,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: controller.isNearLocation.value
                           ? Colors.blue
@@ -163,9 +166,11 @@ class MapScreen extends GetView<MapsController> {
             child: Obx(() {
               return FloatingActionButton(
                 heroTag: 'floating2',
-                onPressed: controller.isLoading.value
+                onPressed:
+                controller.isLoading.value
                     ? null
-                    : () async {
+                    :
+                    () async {
                   controller.isLoading.value = true;
                   await controller.getCurrentLocation();
                   controller.isLoading.value = false;

@@ -1,16 +1,23 @@
 import 'dart:math';
 
 class FaceEmbeddingModel {
-  final List<double> vector;
-  FaceEmbeddingModel(this.vector);
+  final List<double> features;
+
+  FaceEmbeddingModel(this.features);
 
   double distanceTo(FaceEmbeddingModel other) {
-    if (vector.length != other.vector.length) return double.infinity;
+    if (features.length != other.features.length) return double.infinity;
+
     double sum = 0;
-    for (int i = 0; i < vector.length; i++) {
-      final diff = vector[i] - other.vector[i];
-      sum += diff * diff;
+    for (int i = 0; i < features.length; i++) {
+      sum += (features[i] - other.features[i]) * (features[i] - other.features[i]);
     }
-    return sqrt(sum); // Ganti ini!
+    return sqrt(sum);
   }
+
+
+  // Optional: untuk debug
+  Map<String, dynamic> toJson() => {
+    'features': features,
+  };
 }

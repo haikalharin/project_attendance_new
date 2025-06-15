@@ -1,174 +1,191 @@
-import 'dart:async';
 import 'dart:io';
-import 'dart:ui' as ui;
+import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../model/face_embedding_model.dart';
-import '../model/result_model.dart';
-import '../view/face_painter_new.dart';
+import '../model/detected_face_model.dart';
 
 class FaceRecognitionController extends GetxController {
-  final Rx<ResultModel<CameraController?>> cameraState =
-      ResultModel<CameraController?>.loading().obs;
+  final Rxn<CameraController> cameraController = Rxn<CameraController>();
+  final RxBool isCameraInitialized = false.obs;
+  final RxList<DetectedFaceModel> detectedFaces = <DetectedFaceModel>[].obs;
+  final RxString status = 'Tekan mulai untuk buka kamera'.obs;
 
-  final Rx<CameraDescription?> selectedCamera = Rx<CameraDescription?>(null);
-  final RxList<ResultModel<FaceEmbeddingModel>> predictedDatas = <ResultModel<FaceEmbeddingModel>>[].obs;
+  late List<CameraDescription> cameras;
+  int selectedCameraIndex = 0;
+  bool isProcessing = false;
+  FaceEmbeddingModel? referenceFace;
+  bool referenceCaptured = false;
 
-  final RxString faceTestDesc = ''.obs;
-  final Rx<FacePainter?> painter = Rx<FacePainter?>(null);
-  final RxInt resultCompare = 0.obs;
-  final Rx<FaceEmbeddingModel?> faceData = Rx<FaceEmbeddingModel?>(null);
-  final List<FaceEmbeddingModel> predictedDatasFace =
-      (Get.arguments?['predicted_datas'] as List<dynamic>?)
-          ?.cast<FaceEmbeddingModel>() ?? [];
-
-  List<CameraDescription>? cameras;
-  late FaceDetector faceDetector;
-  bool _isDetecting = false;
-  late Timer _timer;
+  final FaceDetector faceDetector = FaceDetector(
+    options: FaceDetectorOptions(
+      enableClassification: true,
+      enableContours: true,
+      performanceMode: FaceDetectorMode.accurate,
+    ),
+  );
 
   @override
   void onInit() {
     super.onInit();
-    // Dummy prediction data
-    predictedDatas.assignAll([
-      ResultModel.completed(FaceEmbeddingModel([0.1, 0.2, 0.3, 0.4])),
-      ResultModel.completed(FaceEmbeddingModel([0.15, 0.22, 0.35, 0.42])),
-    ]);
-    initial(predictedDatasFace);
+    initCamera();
   }
 
-  void _initFaceDetector() {
-    final options = FaceDetectorOptions(
-      enableContours: true,
-      enableClassification: true,
-      performanceMode: FaceDetectorMode.fast,
-    );
-    faceDetector = FaceDetector(options: options);
-  }
-
-  Future<void> initial(List<dynamic> datas) async {
-    if (datas.isNotEmpty) {
-      predictedDatas.assignAll(datas.cast<ResultModel<FaceEmbeddingModel>>());
-    }
-    await _initializeCamera();
-  }
-
-  Future<void> _initializeCamera() async {
+  Future<void> initCamera() async {
     try {
-      cameraState.value = ResultModel.loading();
+      cameras = await availableCameras();
 
-      cameras = await availableCameras();
-      cameras = await availableCameras();
-      selectedCamera.value = cameras!.firstWhere(
-            (c) => c.lensDirection == CameraLensDirection.front,
+      // Cari kamera depan
+      final frontIndex = cameras.indexWhere(
+            (camera) => camera.lensDirection == CameraLensDirection.front,
       );
+
+      selectedCameraIndex = frontIndex != -1 ? frontIndex : 0;
+
+      await startCamera(selectedCameraIndex);
+    } catch (e) {
+      debugPrint('Camera init error: $e');
+    }
+  }
+  Future<void> startCamera(int cameraIndex) async {
+    try {
+      final cam = cameras[cameraIndex];
 
       final controller = CameraController(
-        selectedCamera.value!,
+        cam,
         ResolutionPreset.medium,
         enableAudio: false,
+        imageFormatGroup:
+        Platform.isIOS ? ImageFormatGroup.bgra8888 : ImageFormatGroup.nv21,
       );
+
       await controller.initialize();
-      cameraState.value = ResultModel.completed(controller);
 
-      _startImageStream(controller);
+      cameraController.value = controller;
+      isCameraInitialized.value = true;
+      await controller.startImageStream(_processCameraImage);
+      status.value = 'Kamera siap. Arahkan wajah.';
     } catch (e) {
-      cameraState.value = ResultModel.error(e.toString());
+      debugPrint('Start camera error: $e');
     }
   }
 
-  void _startImageStream(CameraController controller) {
-    controller.startImageStream((CameraImage image) async {
-      if (_isDetecting) return;
-      _isDetecting = true;
-
-      try {
-        final inputImage = _getInputImage(image, controller.description.sensorOrientation);
-        final faces = await faceDetector.processImage(inputImage);
-
-        if (faces.isNotEmpty) {
-          final face = faces.first;
-          final anglesOK = ((face.headEulerAngleY?.abs() ?? 0) <= 10) &&
-              ((face.headEulerAngleZ?.abs() ?? 0) <= 10);
-
-          faceTestDesc.value = anglesOK ? "Good Angle" : "Adjust Face";
-
-          painter.value = FacePainter(faces: faces, imageSize: inputImage.metadata!.size);
-        } else {
-          faceTestDesc.value = "No face detected";
-          painter.value = null;
-        }
-      } catch (_) {
-        painter.value = null;
+  Future<void> stopCamera() async {
+    final ctrl = cameraController.value;
+    if (ctrl != null) {
+      if (ctrl.value.isStreamingImages) {
+        await ctrl.stopImageStream();
       }
-
-      _isDetecting = false;
-    });
+      await ctrl.dispose();
+      cameraController.value = null;
+    }
+    isCameraInitialized.value = false;
+    status.value = 'Kamera dimatikan.';
+    referenceCaptured = false;
+    detectedFaces.clear();
   }
 
-  InputImage _getInputImage(CameraImage image, int rotation) {
-    final allBytes = WriteBuffer();
-    for (var plane in image.planes) {
-      allBytes.putUint8List(plane.bytes);
+  Future<void> toggleCamera() async {
+    if (cameras.length < 2) return;
+
+    selectedCameraIndex = (selectedCameraIndex + 1) % cameras.length;
+
+    await stopCamera();
+    await startCamera(selectedCameraIndex);
+  }
+
+  void _processCameraImage(CameraImage image) async {
+    if (isProcessing) return;
+    isProcessing = true;
+
+    final inputImage = _convertCameraImage(image);
+    if (inputImage == null) {
+      isProcessing = false;
+      return;
     }
 
-    final bytes = allBytes.done().buffer.asUint8List();
-    final ui.Size imageSize = ui.Size(image.width.toDouble(), image.height.toDouble());
+    final faces = await faceDetector.processImage(inputImage);
+    if (faces.isEmpty) {
+      status.value = 'Tidak ada wajah.';
+      detectedFaces.clear();
+      isProcessing = false;
+      return;
+    }
 
-    final InputImageRotation imageRotation =
-        InputImageRotationValue.fromRawValue(rotation) ?? InputImageRotation.rotation0deg;
+    detectedFaces.value =
+        faces.map((f) => DetectedFaceModel.fromRect(f.boundingBox)).toList();
 
-    final inputImageFormat =
-         Platform.isIOS?InputImageFormat.yuv420:InputImageFormat.nv21;
+    final currentFace = _extractFeatures(faces.first);
 
+    if (!referenceCaptured) {
+      referenceFace = currentFace;
+      referenceCaptured = true;
+      status.value = '✅ Wajah acuan disimpan. Silakan verifikasi...';
+    } else {
+      final distance = referenceFace!.distanceTo(currentFace);
+      status.value = distance < 0.6
+          ? '✅ Cocok (distance: ${distance.toStringAsFixed(3)})'
+          : '❌ Tidak cocok (distance: ${distance.toStringAsFixed(3)})';
+    }
 
-
-    final metadata = InputImageMetadata(
-      size: imageSize,
-      rotation: imageRotation,
-      format: inputImageFormat,
-      bytesPerRow: image.planes.first.bytesPerRow,
-    );
-
-    return InputImage.fromBytes(bytes: bytes, metadata: metadata);
+    isProcessing = false;
   }
 
-  void switchCamera() {
-    if (cameras == null || cameras!.isEmpty) return;
+  InputImage? _convertCameraImage(CameraImage image) {
+    try {
+      final WriteBuffer allBytes = WriteBuffer();
+      for (final Plane plane in image.planes) {
+        allBytes.putUint8List(plane.bytes);
+      }
+      final bytes = allBytes.done().buffer.asUint8List();
 
-    final currentIndex = cameras!.indexOf(selectedCamera.value!);
-    final nextIndex = (currentIndex + 1) % cameras!.length;
-    selectedCamera.value = cameras![nextIndex];
+      final Size imageSize =
+      Size(image.width.toDouble(), image.height.toDouble());
 
-    cameraState.value.data?.dispose();
-    _initializeCamera();
+      final InputImageRotation imageRotation =
+          InputImageRotation.rotation0deg; // adjust if needed
+
+      final InputImageFormat inputImageFormat =
+      Platform.isIOS ? InputImageFormat.bgra8888 : InputImageFormat.nv21;
+
+      final plane = image.planes.first;
+
+      final metadata = InputImageMetadata(
+        size: imageSize,
+        rotation: imageRotation,
+        format: inputImageFormat,
+        bytesPerRow: plane.bytesPerRow,
+      );
+
+      return InputImage.fromBytes(bytes: bytes, metadata: metadata);
+    } catch (e) {
+      debugPrint('Error converting camera image: $e');
+      return null;
+    }
   }
 
-  void capture() {
-    // Simulasi face vector, nanti diganti dengan hasil dari model
-    faceData.value = FaceEmbeddingModel([0.1, 0.2, 0.3, 0.4]);
-    Get.back(result: faceData.value);
-  }
-
-  void verifyFace() {
-    if (faceData.value == null) return;
-
-    final refVector = faceData.value!;
-    final result = predictedDatas.firstWhereOrNull((e) {
-      final double distance = e.data!.distanceTo(refVector);
-      return distance < 0.6; // threshold
-    });
-
-    resultCompare.value = result != null ? 1 : -1;
-    Get.back(result: resultCompare.value == 1);
+  FaceEmbeddingModel _extractFeatures(Face face) {
+    final features = [
+      face.boundingBox.left,
+      face.boundingBox.top,
+      face.boundingBox.right,
+      face.boundingBox.bottom,
+      face.headEulerAngleX ?? 0,
+      face.headEulerAngleY ?? 0,
+      face.headEulerAngleZ ?? 0,
+      face.smilingProbability ?? 0,
+      face.leftEyeOpenProbability ?? 0,
+      face.rightEyeOpenProbability ?? 0,
+    ];
+    return FaceEmbeddingModel(features);
   }
 
   @override
   void onClose() {
-    cameraState.value.data?.dispose();
+    stopCamera(); // ensure proper cleanup
     faceDetector.close();
     super.onClose();
   }

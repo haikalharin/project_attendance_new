@@ -55,6 +55,7 @@ dependencies:
   google_mlkit_commons: ^0.11.0
   camera: ^0.10.4
   image_picker: ^1.1.0
+  camerawesome: ^2.5.0
 
 
   # The following adds the Cupertino Icons font to your application.
