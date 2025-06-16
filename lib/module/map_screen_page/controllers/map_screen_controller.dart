@@ -1,20 +1,18 @@
 import 'dart:async';
-
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:location/location.dart'; // ✅ GANTI DARI geolocator
 import 'package:formz/formz.dart';
-import 'package:project_attendance_new/repository/maps_repository.dart';
-import 'package:project_attendance_new/services/maps_service/maps_services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import '../../../routes/app_routes.dart';
 import '../../employee_page/model/employee_model_new.dart';
 import '../../face_recog_screen_page/model/face_embedding_model.dart';
 import '../../face_recog_screen_page/model/result_model.dart';
 import '../model/address_model.dart';
+import 'package:project_attendance_new/repository/maps_repository.dart';
+import 'package:project_attendance_new/services/maps_service/maps_services.dart';
 
 class MapsController extends GetxController {
   final MapsServices mapsServices;
@@ -32,8 +30,10 @@ class MapsController extends GetxController {
   final zoomLevel = 16.0;
   final isLoading = false.obs;
 
-  StreamSubscription<Position>? positionStream;
+  StreamSubscription<LocationData>? positionStream;
   bool isControllerDisposed = false;
+
+  final Location location = Location(); // ✅ Deklarasi instance Location
 
   final polygonPoints = [
     LatLng(-6.196061008120713, 106.97853340741206),
@@ -49,59 +49,68 @@ class MapsController extends GetxController {
     startLiveLocation();
   }
 
-  void startLiveLocation() async {
+  Future<void> startLiveLocation() async {
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        throw 'Location services are disabled.';
+      bool serviceEnabled = await location.serviceEnabled();
+      if (!serviceEnabled) {
+        serviceEnabled = await location.requestService();
+        if (!serviceEnabled) throw 'Location service is disabled.';
       }
 
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied ||
-            permission == LocationPermission.deniedForever) {
-          throw 'Location permissions are denied.';
+      PermissionStatus permissionGranted = await location.hasPermission();
+      if (permissionGranted == PermissionStatus.denied) {
+        permissionGranted = await location.requestPermission();
+        if (permissionGranted != PermissionStatus.granted) {
+          throw 'Location permission is denied.';
         }
       }
 
-      final initialPosition = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      final latLng = LatLng(initialPosition.latitude, initialPosition.longitude);
+      final initial = await location.getLocation();
+      final latLng = LatLng(initial.latitude!, initial.longitude!);
       currentPosition.value = latLng;
 
       _safeMoveMap(latLng, zoomLevel);
 
       final distance = _getDistance(latLng, companyTarget);
       distanceToTarget.value = distance;
+      final isInside = isPointInPolygon(latLng, polygonPoints);
+      isNearLocation.value = isInside;
+      isNearLocationBefore.value = distance <= 1000;
 
+      positionStream = location.onLocationChanged.listen((locationData) {
+        final updatedLatLng = LatLng(locationData.latitude!, locationData.longitude!);
+        currentPosition.value = updatedLatLng;
+
+        _safeMoveMap(updatedLatLng, zoomLevel);
+
+        final d = _getDistance(updatedLatLng, companyTarget);
+        distanceToTarget.value = d;
+
+        final inside = isPointInPolygon(updatedLatLng, polygonPoints);
+        isNearLocation.value = inside;
+        isNearLocationBefore.value = d <= 1000;
+      });
+    } catch (e) {
+      Get.snackbar('Error', 'Gagal mendapatkan lokasi: $e');
+    }
+  }
+
+  Future<void> getCurrentLocation() async {
+    try {
+      final current = await location.getLocation();
+      final latLng = LatLng(current.latitude!, current.longitude!);
+      currentPosition.value = latLng;
+
+      _safeMoveMap(latLng, zoomLevel);
+
+      final distance = _getDistance(latLng, companyTarget);
+      distanceToTarget.value = distance;
       final isInside = isPointInPolygon(latLng, polygonPoints);
       isNearLocation.value = isInside;
       isNearLocationBefore.value = distance <= 1000;
     } catch (e) {
-      print(e);
-      Get.snackbar('Error', 'Gagal mendapatkan lokasi awal: $e');
+      Get.snackbar('Error', '$e');
     }
-
-    positionStream = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 1,
-      ),
-    ).listen((Position position) {
-      final latLng = LatLng(position.latitude, position.longitude);
-      currentPosition.value = latLng;
-
-      _safeMoveMap(latLng, zoomLevel);
-
-      final distance = _getDistance(latLng, companyTarget);
-      distanceToTarget.value = distance;
-
-      final isInside = isPointInPolygon(latLng, polygonPoints);
-      isNearLocation.value = isInside;
-      isNearLocationBefore.value = distance <= 1000;
-    });
   }
 
   void _safeMoveMap(LatLng latLng, double zoom) {
@@ -111,41 +120,6 @@ class MapsController extends GetxController {
       } catch (e) {
         debugPrint("MapController move failed: $e");
       }
-    }
-  }
-
-  Future<void> getCurrentLocation() async {
-    try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        throw 'Location services are disabled.';
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied ||
-            permission == LocationPermission.deniedForever) {
-          throw 'Location permissions are denied.';
-        }
-      }
-
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      final latLng = LatLng(position.latitude, position.longitude);
-      currentPosition.value = latLng;
-
-      _safeMoveMap(latLng, 16.0);
-
-      final distance = _getDistance(latLng, companyTarget);
-      distanceToTarget.value = distance;
-
-      final isInside = isPointInPolygon(latLng, polygonPoints);
-      isNearLocation.value = isInside;
-      isNearLocationBefore.value = distance <= 1000;
-    } catch (e) {
-      Get.snackbar('Error', '$e');
     }
   }
 
@@ -176,8 +150,8 @@ class MapsController extends GetxController {
     final lat = currentPosition.value!.latitude;
     final long = currentPosition.value!.longitude;
     isLoading.value = true;
-    final response = await mapsServices.getAddress(lat: lat, long: long);
 
+    final response = await mapsServices.getAddress(lat: lat, long: long);
     if (response.isSuccess) {
       isLoading.value = false;
       AddressModel addressModelData = AddressModel.fromJson(response.data);
