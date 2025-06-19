@@ -158,12 +158,13 @@ class MapsController extends GetxController {
       addressModel.value = addressModelData;
       checkInTime.value = DateFormat('HH:mm:ss').format(DateTime.now());
       submitStatus.value = FormzSubmissionStatus.success;
+      Get.toNamed(Routes.FACE_RECOG_PAGE);
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(addressModel.value?.displayName ?? '')),
-        );
-      });
+      // WidgetsBinding.instance.addPostFrameCallback((_) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(content: Text(addressModel.value?.displayName ?? '')),
+      //   );
+      // });
     } else {
       isLoading.value = false;
       submitStatus.value = FormzSubmissionStatus.failure;

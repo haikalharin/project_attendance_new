@@ -41,6 +41,9 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+    aaptOptions {
+        noCompress "Regula/faceSdkResource.dat"
+    }
 }
 
 flutter {
