@@ -16,6 +16,7 @@ import 'package:project_attendance_new/services/maps_service/maps_services.dart'
 
 class MapsController extends GetxController {
   final MapsServices mapsServices;
+
   MapsController({required this.mapsServices});
 
   late final MapController mapController;
@@ -36,10 +37,11 @@ class MapsController extends GetxController {
   final Location location = Location(); // ✅ Deklarasi instance Location
 
   final polygonPoints = [
-    LatLng(-6.196661008120713, 106.97853340741206),
-    LatLng(-6.195348713637337, 106.97863110915242),
-    LatLng(-6.195458795574853, 106.97910007750623),
-    LatLng(-6.196538712915294, 106.97901540266457),
+    LatLng(-6.196091685320488, 106.97716467190843),
+    LatLng(-6.194632112240851, 106.97892644898049),
+    LatLng(-6.1928010057609795, 106.97952705480051),
+    LatLng(-6.192880619218244, 106.98007427343654),
+    LatLng(-6.196702051047759, 106.97982068431251),
   ];
 
   @override
@@ -78,7 +80,10 @@ class MapsController extends GetxController {
       isNearLocationBefore.value = distance <= 1000;
 
       positionStream = location.onLocationChanged.listen((locationData) {
-        final updatedLatLng = LatLng(locationData.latitude!, locationData.longitude!);
+        final updatedLatLng = LatLng(
+          locationData.latitude!,
+          locationData.longitude!,
+        );
         currentPosition.value = updatedLatLng;
 
         _safeMoveMap(updatedLatLng, zoomLevel);
@@ -109,13 +114,17 @@ class MapsController extends GetxController {
         isLoading.value = false;
         AddressModel addressModelData = AddressModel.fromJson(response.data);
         addressModel.value = addressModelData;
+        addressModel.value?.displayName = isNearLocation.value
+            ? 'Area BA'
+            : addressModel.value?.displayName;
 
         // WidgetsBinding.instance.addPostFrameCallback((_) {
         //   ScaffoldMessenger.of(context).showSnackBar(
         //     SnackBar(content: Text(addressModel.value?.displayName ?? '')),
         //   );
         // });
-      }else {
+
+      } else {
         isLoading.value = false;
         submitStatus.value = FormzSubmissionStatus.failure;
       }
@@ -148,11 +157,11 @@ class MapsController extends GetxController {
 
     for (i = 0; i < polygon.length; i++) {
       if ((polygon[i].latitude > point.latitude) !=
-          (polygon[j].latitude > point.latitude) &&
+              (polygon[j].latitude > point.latitude) &&
           (point.longitude <
               (polygon[j].longitude - polygon[i].longitude) *
-                  (point.latitude - polygon[i].latitude) /
-                  (polygon[j].latitude - polygon[i].latitude) +
+                      (point.latitude - polygon[i].latitude) /
+                      (polygon[j].latitude - polygon[i].latitude) +
                   polygon[i].longitude)) {
         result = !result;
       }
@@ -175,6 +184,10 @@ class MapsController extends GetxController {
       isLoading.value = false;
       AddressModel addressModelData = AddressModel.fromJson(response.data);
       addressModel.value = addressModelData;
+      addressModel.value?.displayName = isNearLocation.value
+          ? 'Area BA'
+          : addressModel.value?.displayName;
+
       checkInTime.value = DateFormat('HH:mm:ss').format(DateTime.now());
       submitStatus.value = FormzSubmissionStatus.success;
       isControllerDisposed = true;
