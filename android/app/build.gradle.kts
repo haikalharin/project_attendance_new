@@ -42,7 +42,7 @@ android {
         }
     }
     aaptOptions {
-        noCompress "Regula/faceSdkResource.dat"
+        noCompress.add("Regula/faceSdkResource.dat")
     }
 }
 
