@@ -36,7 +36,7 @@ class MapsController extends GetxController {
   final Location location = Location(); // ✅ Deklarasi instance Location
 
   final polygonPoints = [
-    LatLng(-6.196061008120713, 106.97853340741206),
+    LatLng(-6.196661008120713, 106.97853340741206),
     LatLng(-6.195348713637337, 106.97863110915242),
     LatLng(-6.195458795574853, 106.97910007750623),
     LatLng(-6.196138712915294, 106.97901540266457),
@@ -100,6 +100,25 @@ class MapsController extends GetxController {
       final current = await location.getLocation();
       final latLng = LatLng(current.latitude!, current.longitude!);
       currentPosition.value = latLng;
+      final lat = currentPosition.value!.latitude;
+      final long = currentPosition.value!.longitude;
+      isLoading.value = true;
+
+      final response = await mapsServices.getAddress(lat: lat, long: long);
+      if (response.isSuccess) {
+        isLoading.value = false;
+        AddressModel addressModelData = AddressModel.fromJson(response.data);
+        addressModel.value = addressModelData;
+
+        // WidgetsBinding.instance.addPostFrameCallback((_) {
+        //   ScaffoldMessenger.of(context).showSnackBar(
+        //     SnackBar(content: Text(addressModel.value?.displayName ?? '')),
+        //   );
+        // });
+      }else {
+        isLoading.value = false;
+        submitStatus.value = FormzSubmissionStatus.failure;
+      }
 
       _safeMoveMap(latLng, zoomLevel);
 
