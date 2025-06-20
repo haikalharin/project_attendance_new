@@ -51,8 +51,9 @@ class FaceRecognitionController extends GetxController {
 
   Future<void> pickReferenceImage() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.camera);
+    final picked = await picker.pickImage(source: ImageSource.camera,preferredCameraDevice: CameraDevice.front);
     if (picked != null) {
+
       referenceImageBytes.value = await picked.readAsBytes();
     }
   }
