@@ -50,7 +50,6 @@ class FaceRecognitionController extends GetxController {
   }
 
   Future<void> pickReferenceImage() async {
-
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.camera);
     if (picked != null) {
@@ -62,9 +61,7 @@ class FaceRecognitionController extends GetxController {
     // var faceSdk = regula.FaceSDK.instance;
 
     final response = await faceSdk.startFaceCapture();
-    if (response.image == null ||
-        referenceImageBytes.value == null)
-      return;
+    if (response.image == null || referenceImageBytes.value == null) return;
 
     final refImage = regula.MatchFacesImage(
       referenceImageBytes.value!,
@@ -91,9 +88,9 @@ class FaceRecognitionController extends GetxController {
       if (sim >= 0.75) {
         faceSdk.stopFaceCapture(); // optional untuk stop proses sebelum back
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Wajah Cocok 🎉")),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("Wajah Cocok 🎉")));
         });
         // Get.defaultDialog(
         //   title: "Wajah Cocok 🎉",
@@ -104,6 +101,18 @@ class FaceRecognitionController extends GetxController {
         //   ),
         // );
       }
+    } else {
+      similarity.value = 0.0;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Wajah Tidak Cocok",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+      });
     }
   }
 }

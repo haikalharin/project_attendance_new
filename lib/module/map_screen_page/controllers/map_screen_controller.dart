@@ -177,6 +177,8 @@ class MapsController extends GetxController {
       addressModel.value = addressModelData;
       checkInTime.value = DateFormat('HH:mm:ss').format(DateTime.now());
       submitStatus.value = FormzSubmissionStatus.success;
+      isControllerDisposed = true;
+      positionStream?.cancel();
       Get.toNamed(Routes.FACE_RECOG_PAGE);
 
       // WidgetsBinding.instance.addPostFrameCallback((_) {
