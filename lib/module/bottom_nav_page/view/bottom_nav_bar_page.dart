@@ -70,7 +70,7 @@ class BottomNavBarPage extends GetView<BottomNavBarController> {
                 leading: const Icon(Icons.logout),
                 title: const Text('Logout'),
                 onTap: () {
-                  Navigator.pop(context);
+                  controller.logout();
                   Get.snackbar("Logout", "Kamu telah logout.");
                 },
               ),

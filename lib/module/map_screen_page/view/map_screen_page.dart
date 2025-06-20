@@ -35,56 +35,39 @@ class MapScreen extends GetView<MapsController> {
                   child: FlutterMap(
                     mapController: controller.mapController,
                     options: MapOptions(
-                      initialCenter: controller.currentPosition.value ??
+                      initialCenter:
+                          controller.currentPosition.value ??
                           const LatLng(50.5, 30.51),
-                      initialZoom: controller.currentPosition.value == null ? 3.0 : 16.0,
+                      initialZoom: controller.currentPosition.value == null
+                          ? 3.0
+                          : 16.0,
                       maxZoom: 19.0,
                       minZoom: 10.0,
                       onPositionChanged: (position, hasGesture) {
                         if (hasGesture && position.center != null) {
-                          controller.mapController
-                              .move(position.center!, 16.0);
+                          controller.mapController.move(position.center!, 16.0);
                         }
                       },
                     ),
                     children: [
                       TileLayer(
                         urlTemplate:
-                        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                         subdomains: const ['a', 'b', 'c'],
                       ),
                       MarkerLayer(
                         markers: [
                           Marker(
-                            point: LatLng(-6.266903733076428, 106.9781681733102),
-                            child: const Icon(Icons.circle, color: Colors.red),
-                          ),
-                          Marker(
-                            point: LatLng(-6.266936794841454, 106.97816025413766),
-                            child: const Icon(Icons.circle, color: Colors.green),
-                          ),
-                          Marker(
-                            point: LatLng(-6.267024959537934, 106.97851820073629),
-                            child: const Icon(Icons.circle, color: Colors.blue),
-                          ),
-                          Marker(
-                            point: LatLng(-6.267226478788224, 106.97842792216937),
-                            child: const Icon(Icons.circle, color: Colors.orange),
-                          ),
-                          Marker(
-                            point: controller.companyTarget,
-                            width: 80,
-                            height: 80,
-                            child: const Icon(Icons.location_city,
-                                color: Colors.blue, size: 40),
-                          ),
-                          Marker(
-                            point: controller.currentPosition.value ??
+                            point:
+                                controller.currentPosition.value ??
                                 const LatLng(50.5, 30.51),
                             width: 80,
                             height: 80,
-                            child: const Icon(Icons.person_pin_circle,
-                                color: Colors.red, size: 40),
+                            child: const Icon(
+                              Icons.person_pin_circle,
+                              color: Colors.red,
+                              size: 40,
+                            ),
                           ),
                         ],
                       ),
@@ -116,9 +99,13 @@ class MapScreen extends GetView<MapsController> {
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           Text(
-                            controller.isNearLocation.value ? 'Normal' : 'Out of Zone',
+                            controller.isNearLocation.value
+                                ? 'Normal'
+                                : 'Out of Zone',
                             style: TextStyle(
-                              color: controller.isNearLocation.value ? Colors.green : Colors.red,
+                              color: controller.isNearLocation.value
+                                  ? Colors.green
+                                  : Colors.red,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -126,7 +113,8 @@ class MapScreen extends GetView<MapsController> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        controller.addressModel.value?.displayName ?? 'Loading address...',
+                        controller.addressModel.value?.displayName ??
+                            'Loading address...',
                         style: const TextStyle(color: Colors.grey),
                       ),
                       const SizedBox(height: 8),
@@ -143,12 +131,9 @@ class MapScreen extends GetView<MapsController> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: ElevatedButton(
-                    onPressed:
-                    // controller.isNearLocation.value
-                    //     ?
-                        () => controller.checkIn(context)
-                        // : null
-                    ,
+                    onPressed: controller.isNearLocation.value
+                        ? () => controller.checkIn(context)
+                        : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: controller.isNearLocation.value
                           ? Colors.blue
@@ -169,11 +154,13 @@ class MapScreen extends GetView<MapsController> {
                 onPressed: controller.isLoading.value
                     ? null
                     : () async {
-                  controller.isLoading.value = true;
-                  await controller.getCurrentLocation();
-                  controller.isLoading.value = false;
-                },
-                backgroundColor: controller.isLoading.value ? Colors.grey : Colors.blue,
+                        controller.isLoading.value = true;
+                        await controller.getCurrentLocation();
+                        controller.isLoading.value = false;
+                      },
+                backgroundColor: controller.isLoading.value
+                    ? Colors.grey
+                    : Colors.blue,
                 child: const Icon(Icons.my_location),
               );
             }),
